@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -176,6 +176,7 @@ static void dsi_bridge_enable(struct drm_bridge *bridge)
 {
 	int rc = 0;
 	struct dsi_bridge *c_bridge = to_dsi_bridge(bridge);
+	struct dsi_display *display;
 
 	if (!bridge) {
 		pr_err("Invalid params\n");
@@ -187,11 +188,15 @@ static void dsi_bridge_enable(struct drm_bridge *bridge)
 		pr_debug("[%d] seamless enable\n", c_bridge->id);
 		return;
 	}
+	display = c_bridge->display;
 
-	rc = dsi_display_post_enable(c_bridge->display);
+	rc = dsi_display_post_enable(display);
 	if (rc)
 		pr_err("[%d] DSI display post enabled failed, rc=%d\n",
 		       c_bridge->id, rc);
+
+	if (display && display->drm_conn)
+		sde_connector_helper_bridge_enable(display->drm_conn);
 }
 
 static void dsi_bridge_disable(struct drm_bridge *bridge)
