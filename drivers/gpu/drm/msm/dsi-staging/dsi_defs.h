@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -595,6 +595,7 @@ enum dsi_error_status {
 	DSI_FIFO_OVERFLOW = 1,
 	DSI_FIFO_UNDERFLOW,
 	DSI_LP_Rx_TIMEOUT,
+	DSI_ERR_INTR_ALL,
 };
 
 #endif /* _DSI_DEFS_H_ */
