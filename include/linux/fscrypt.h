@@ -25,7 +25,7 @@
 
 /* iv sector for security/pfe/pfk_fscrypt.c and f2fs */
 #define PG_DUN(i, p)                                            \
-	((((i)->i_ino & 0xffffffff) << 32) | ((p)->index & 0xffffffff))
+	(((((u64)(i)->i_ino) & 0xffffffff) << 32) | ((p)->index & 0xffffffff))
 
 struct fscrypt_info;
 
@@ -87,7 +87,6 @@ struct fscrypt_operations {
 	bool (*dummy_context)(struct inode *);
 	bool (*empty_dir)(struct inode *);
 	unsigned (*max_namelen)(struct inode *);
-	bool (*is_encrypted)(struct inode *);
 };
 
 static inline bool fscrypt_dummy_context_enabled(struct inode *inode)
@@ -109,7 +108,8 @@ static inline bool fscrypt_valid_enc_modes(u32 contents_mode,
 	    filenames_mode == FS_ENCRYPTION_MODE_AES_256_CTS)
 		return true;
 
-	if (contents_mode == FS_ENCRYPTION_MODE_PRIVATE)
+	if (contents_mode == FS_ENCRYPTION_MODE_PRIVATE &&
+	    filenames_mode == FS_ENCRYPTION_MODE_AES_256_CTS)
 		return true;
 
 	return false;

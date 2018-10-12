@@ -926,6 +926,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 		.check_status = dsi_display_check_status,
 		.enable_event = dsi_conn_enable_event,
 		.cmd_transfer = dsi_display_cmd_transfer,
+		.get_panel_vfp = dsi_display_get_panel_vfp,
 	};
 	static const struct sde_connector_ops wb_ops = {
 		.post_init =    sde_wb_connector_post_init,
@@ -939,6 +940,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 		.get_dst_format = NULL,
 		.check_status = NULL,
 		.cmd_transfer = NULL,
+		.get_panel_vfp = NULL,
 	};
 	static const struct sde_connector_ops dp_ops = {
 		.post_init  = dp_connector_post_init,
@@ -951,6 +953,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 		.check_status = NULL,
 		.config_hdr = dp_connector_config_hdr,
 		.cmd_transfer = NULL,
+		.get_panel_vfp = NULL,
 	};
 	struct msm_display_info info;
 	struct drm_encoder *encoder;

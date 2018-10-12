@@ -97,7 +97,8 @@ struct dsi_ctrl_power_info {
 /**
  * struct dsi_ctrl_clk_info - clock information for DSI controller
  * @core_clks:          Core clocks needed to access DSI controller registers.
- * @link_clks:          Link clocks required to transmit data over DSI link.
+ * @hs_link_clks:       Clocks required to transmit high speed data over DSI
+ * @lp_link_clks:       Clocks required to perform low power ops over DSI
  * @rcg_clks:           Root clock generation clocks generated in MMSS_CC. The
  *			output of the PLL is set as parent for these root
  *			clocks. These clocks are specific to controller
@@ -111,7 +112,8 @@ struct dsi_ctrl_power_info {
 struct dsi_ctrl_clk_info {
 	/* Clocks parsed from DT */
 	struct dsi_core_clk_info core_clks;
-	struct dsi_link_clk_info link_clks;
+	struct dsi_link_hs_clk_info hs_link_clks;
+	struct dsi_link_lp_clk_info lp_link_clks;
 	struct dsi_clk_link_set rcg_clks;
 
 	/* Clocks set by DSI Manager */
@@ -204,6 +206,7 @@ struct dsi_ctrl_interrupts {
  * @cmd_buffer_size:     Size of command buffer.
  * @vaddr:               CPU virtual address of cmd buffer.
  * @secure_mode:         Indicates if secure-session is in progress
+ * @esd_check_underway:  Indicates if esd status check is in progress
  * @debugfs_root:        Root for debugfs entries.
  * @misr_enable:         Frame MISR enable/disable
  * @misr_cache:          Cached Frame MISR value
@@ -248,6 +251,7 @@ struct dsi_ctrl {
 	u32 cmd_len;
 	void *vaddr;
 	bool secure_mode;
+	bool esd_check_underway;
 
 	/* Debug Information */
 	struct dentry *debugfs_root;
@@ -724,8 +728,11 @@ void dsi_ctrl_isr_configure(struct dsi_ctrl *dsi_ctrl, bool enable);
  * dsi_ctrl_mask_error_status_interrupts() - API to mask dsi ctrl error status
  *                                           interrupts
  * @dsi_ctrl:              DSI controller handle.
+ * @idx:                   id indicating which interrupts to enable/disable.
+ * @mask_enable:           boolean to enable/disable masking.
  */
-void dsi_ctrl_mask_error_status_interrupts(struct dsi_ctrl *dsi_ctrl);
+void dsi_ctrl_mask_error_status_interrupts(struct dsi_ctrl *dsi_ctrl, u32 idx,
+						bool mask_enable);
 
 /**
  * dsi_ctrl_irq_update() - Put a irq vote to process DSI error

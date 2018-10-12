@@ -228,9 +228,10 @@ struct sde_connector_ops {
 	/**
 	 * check_status - check status of connected display panel
 	 * @display: Pointer to private display handle
+	 * @te_check_override: Whether check TE from panel or default check
 	 * Returns: positive value for success, negetive or zero for failure
 	 */
-	int (*check_status)(void *display);
+	int (*check_status)(void *display, bool te_check_override);
 
 	/**
 	 * cmd_transfer - Transfer command to the connected display panel
@@ -251,6 +252,14 @@ struct sde_connector_ops {
 	int (*config_hdr)(void *display,
 		struct sde_connector_state *c_state);
 
+	/*
+	 * get_panel_vfp - returns original panel vfp
+	 * @display: Pointer to private display handle
+	 * @h_active: width
+	 * @v_active: height
+	 * Returns: v_front_porch on success error-code on failure
+	 */
+	int (*get_panel_vfp)(void *display, int h_active, int v_active);
 };
 
 /**
@@ -307,6 +316,8 @@ struct sde_connector_evt {
  * @bl_device: backlight device node
  * @status_work: work object to perform status checks
  * @force_panel_dead: variable to trigger forced ESD recovery
+ * @panel_dead: Flag to indicate if panel has gone bad
+ * @esd_status_check: Flag to indicate if ESD thread is scheduled or not
  * @bl_scale_dirty: Flag to indicate PP BL scale value(s) is changed
  * @bl_scale: BL scale value for ABA feature
  * @bl_scale_ad: BL scale value for AD feature
@@ -347,7 +358,7 @@ struct sde_connector {
 	struct backlight_device *bl_device;
 	struct delayed_work status_work;
 	u32 force_panel_dead;
-
+	bool panel_dead;
 	bool esd_status_check;
 
 	bool bl_scale_dirty;
@@ -743,5 +754,27 @@ void sde_conn_timeline_status(struct drm_connector *conn);
  * @connector: Pointer to DRM connector object
  */
 void sde_connector_helper_bridge_disable(struct drm_connector *connector);
+
+/**
+ * sde_connector_helper_bridge_enable - helper function for drm bridge enable
+ * @connector: Pointer to DRM connector object
+ */
+void sde_connector_helper_bridge_enable(struct drm_connector *connector);
+
+/**
+ * sde_connector_get_panel_vfp - helper to get panel vfp
+ * @connector: pointer to drm connector
+ * @h_active: panel width
+ * @v_active: panel heigth
+ * Returns: v_front_porch on success error-code on failure
+ */
+int sde_connector_get_panel_vfp(struct drm_connector *connector,
+	struct drm_display_mode *mode);
+
+/**
+ * sde_connector_esd_status - helper function to check te status
+ * @connector: Pointer to DRM connector object
+ */
+int sde_connector_esd_status(struct drm_connector *connector);
 
 #endif /* _SDE_CONNECTOR_H_ */
