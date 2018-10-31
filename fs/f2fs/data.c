@@ -493,7 +493,8 @@ static struct bio *f2fs_grab_read_bio(struct inode *inode, block_t blkaddr,
 	struct fscrypt_ctx *ctx = NULL;
 	struct bio *bio;
 
-	if (f2fs_encrypted_file(inode)) {
+	if (f2fs_encrypted_file(inode) &&
+		!fscrypt_using_hardware_encryption(inode)) {
 		ctx = fscrypt_get_ctx(inode, GFP_NOFS);
 		if (IS_ERR(ctx))
 			return ERR_CAST(ctx);

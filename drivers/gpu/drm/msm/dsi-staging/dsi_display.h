@@ -463,12 +463,14 @@ int dsi_display_disable(struct dsi_display *display);
  * dsi_pre_clkoff_cb() - Callback before clock is turned off
  * @priv: private data pointer.
  * @clk_type: clock which is being turned on.
+ * @l_type: specifies if the clock is HS or LP type. Valid only for link clocks.
  * @new_state: next state for the clock.
  *
  * @return: error code.
  */
 int dsi_pre_clkoff_cb(void *priv, enum dsi_clk_type clk_type,
-	enum dsi_clk_state new_state);
+		enum dsi_lclk_type l_type,
+		enum dsi_clk_state new_state);
 
 /**
  * dsi_display_update_pps() - update PPS buffer.
@@ -485,35 +487,40 @@ int dsi_display_update_pps(char *pps_cmd, void *display);
  * dsi_post_clkoff_cb() - Callback after clock is turned off
  * @priv: private data pointer.
  * @clk_type: clock which is being turned on.
+ * @l_type: specifies if the clock is HS or LP type. Valid only for link clocks.
  * @curr_state: current state for the clock.
  *
  * @return: error code.
  */
 int dsi_post_clkoff_cb(void *priv, enum dsi_clk_type clk_type,
-	enum dsi_clk_state curr_state);
+		enum dsi_lclk_type l_type,
+		enum dsi_clk_state curr_state);
 
 /**
  * dsi_post_clkon_cb() - Callback after clock is turned on
  * @priv: private data pointer.
  * @clk_type: clock which is being turned on.
+ * @l_type: specifies if the clock is HS or LP type. Valid only for link clocks.
  * @curr_state: current state for the clock.
  *
  * @return: error code.
  */
 int dsi_post_clkon_cb(void *priv, enum dsi_clk_type clk_type,
-	enum dsi_clk_state curr_state);
-
+		enum dsi_lclk_type l_type,
+		enum dsi_clk_state curr_state);
 
 /**
  * dsi_pre_clkon_cb() - Callback before clock is turned on
  * @priv: private data pointer.
  * @clk_type: clock which is being turned on.
+ * @l_type: specifies if the clock is HS or LP type. Valid only for link clocks.
  * @new_state: next state for the clock.
  *
  * @return: error code.
  */
 int dsi_pre_clkon_cb(void *priv, enum dsi_clk_type clk_type,
-	enum dsi_clk_state new_state);
+		enum dsi_lclk_type l_type,
+		enum dsi_clk_state new_state);
 
 /**
  * dsi_display_unprepare() - power off display hardware.
@@ -547,8 +554,9 @@ int dsi_display_set_backlight(void *display, u32 bl_lvl);
 /**
  * dsi_display_check_status() - check if panel is dead or alive
  * @display:            Handle to display.
+ * @te_check_override:	Whether check for TE from panel or default check
  */
-int dsi_display_check_status(void *display);
+int dsi_display_check_status(void *display, bool te_check_override);
 
 /**
  * dsi_display_cmd_transfer() - transfer command to the panel
@@ -605,5 +613,15 @@ int dsi_display_pre_kickoff(struct dsi_display *display,
  * Return: enum dsi_pixel_format type
  */
 enum dsi_pixel_format dsi_display_get_dst_format(void *display);
+
+/*
+ * dsi_display_get_panel_vfp - get panel vsync
+ * @display: Pointer to private display structure
+ * @h_active: width
+ * @v_active: height
+ * Returns: v_front_porch on success error code on failure
+ */
+int dsi_display_get_panel_vfp(void *display,
+	int h_active, int v_active);
 
 #endif /* _DSI_DISPLAY_H_ */
