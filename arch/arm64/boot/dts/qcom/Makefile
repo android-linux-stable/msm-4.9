@@ -111,7 +111,8 @@ dtb-$(CONFIG_ARCH_SDM845) += sdm845-sim.dtb \
 	sdm845-4k-panel-qrd.dtb \
 	sdm845-interposer-sdm670-mtp.dtb \
 	sdm845-interposer-sdm670-cdp.dtb \
-	sdm845-v2.1-rb3.dtb
+	sdm845-v2.1-rb3.dtb \
+	sdm845-v2.1-mtp.dtb
 endif
 
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
@@ -363,8 +364,7 @@ dtbo-$(CONFIG_ARCH_MSM8953) += msm8953-mtp-overlay.dtbo \
 	msm8953-iot-mtp-overlay.dtbo \
 	msm8953-ext-codec-mtp-overlay.dtbo \
 	msm8953-ext-codec-rcm-overlay.dtbo \
-	msm8953-cdp-1200p-overlay.dtbo \
-	msm8953-no-pmi-overlay.dtbo
+	msm8953-cdp-1200p-overlay.dtbo
 
 dtbo-$(CONFIG_ARCH_SDM450) += msm8953-mtp-overlay.dtbo \
 	msm8953-cdp-overlay.dtbo \
@@ -468,8 +468,6 @@ msm8953-ext-codec-mtp-overlay.dtbo-base := msm8953.dtb \
 msm8953-ext-codec-rcm-overlay.dtbo-base := msm8953.dtb \
 	apq8053.dtb
 msm8953-cdp-1200p-overlay.dtbo-base := msm8953.dtb
-
-msm8953-no-pmi-overlay.dtbo-base := msm8953-no-pmi.dtb
 
 sdm450-cdp-s2-overlay.dtbo-base := sdm450-pmi632.dtb \
 	sdm632.dtb \
@@ -651,7 +649,8 @@ dtb-$(CONFIG_ARCH_SDM429) += sdm429-mtp.dtb \
 	sda429-cdp.dtb \
 	sdm429-spyro.dtb \
 	sdm429-spyro-dvt.dtb \
-	sdm429-spyro-wdp.dtb
+	sdm429-spyro-wdp.dtb \
+	sdw3300-bg-1gb-wtp.dtb
 
 endif
 
