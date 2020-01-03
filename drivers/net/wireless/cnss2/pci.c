@@ -52,6 +52,7 @@
 #define FW_ASSERT_TIMEOUT		5000
 
 static DEFINE_SPINLOCK(pci_link_down_lock);
+static DEFINE_SPINLOCK(pci_reg_window_lock);
 
 static unsigned int pci_link_down_panic;
 module_param(pci_link_down_panic, uint, 0600);
@@ -250,6 +251,18 @@ int cnss_pci_is_device_down(struct device *dev)
 		pci_priv->pci_link_down_ind;
 }
 EXPORT_SYMBOL(cnss_pci_is_device_down);
+
+void cnss_pci_lock_reg_window(struct device *dev, unsigned long *flags)
+{
+	spin_lock_bh(&pci_reg_window_lock);
+}
+EXPORT_SYMBOL(cnss_pci_lock_reg_window);
+
+void cnss_pci_unlock_reg_window(struct device *dev, unsigned long *flags)
+{
+	spin_unlock_bh(&pci_reg_window_lock);
+}
+EXPORT_SYMBOL(cnss_pci_unlock_reg_window);
 
 int cnss_pci_call_driver_probe(struct cnss_pci_data *pci_priv)
 {
@@ -990,14 +1003,16 @@ static int cnss_pci_suspend(struct device *dev)
 	}
 
 	if (pci_priv->pci_link_state == PCI_LINK_UP) {
-		ret = cnss_pci_set_mhi_state(pci_priv, CNSS_MHI_SUSPEND);
-		if (ret) {
-			if (driver_ops && driver_ops->resume)
-				driver_ops->resume(pci_dev);
-			ret = -EAGAIN;
-			goto out;
+		if (pci_priv->device_id != QCA6174_DEVICE_ID) {
+			ret = cnss_pci_set_mhi_state(pci_priv,
+						     CNSS_MHI_SUSPEND);
+			if (ret) {
+				if (driver_ops && driver_ops->resume)
+					driver_ops->resume(pci_dev);
+				ret = -EAGAIN;
+				goto out;
+			}
 		}
-
 		cnss_set_pci_config_space(pci_priv,
 					  SAVE_PCI_CONFIG_SPACE);
 		pci_disable_device(pci_dev);
@@ -1090,16 +1105,15 @@ static int cnss_pci_resume_noirq(struct device *dev)
 	if (!pci_priv)
 		goto out;
 
-	ret = cnss_set_pci_link(pci_priv, PCI_LINK_UP);
-	if (ret)
-		goto out;
-	pci_priv->pci_link_state = PCI_LINK_UP;
-
 	driver_ops = pci_priv->driver_ops;
 	if (driver_ops && driver_ops->resume_noirq &&
-	    !pci_priv->pci_link_down_ind)
+	    !pci_priv->pci_link_down_ind) {
+		ret = cnss_set_pci_link(pci_priv, PCI_LINK_UP);
+		if (ret)
+			goto out;
+		pci_priv->pci_link_state = PCI_LINK_UP;
 		ret = driver_ops->resume_noirq(pci_dev);
-
+	}
 out:
 	return ret;
 }
