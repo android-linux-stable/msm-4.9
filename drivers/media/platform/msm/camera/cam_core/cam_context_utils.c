@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -386,6 +386,17 @@ int32_t cam_context_prepare_dev_to_hw(struct cam_context *ctx,
 				ctx->dev_name, ctx->ctx_id, req->request_id);
 
 		for (j = 0; j < req->num_in_map_entries; j++) {
+			rc = cam_sync_check_valid(
+				req->in_map_entries[j].sync_id);
+			if (rc) {
+				CAM_ERR(CAM_CTXT,
+					"invalid in map sync object %d",
+					req->in_map_entries[j].sync_id);
+				goto put_ref;
+			}
+		}
+
+		for (j = 0; j < req->num_in_map_entries; j++) {
 			cam_context_getref(ctx);
 			rc = cam_sync_register_callback(
 					cam_context_sync_callback,
@@ -406,9 +417,7 @@ int32_t cam_context_prepare_dev_to_hw(struct cam_context *ctx,
 						ctx->dev_name, ctx->ctx_id,
 						req->request_id);
 
-				cam_context_putref(ctx);
-
-				goto put_ref;
+				goto put_ctx_ref;
 			}
 			CAM_DBG(CAM_CTXT, "register in fence cb: %d ret = %d",
 				req->in_map_entries[j].sync_id, rc);
@@ -417,6 +426,10 @@ int32_t cam_context_prepare_dev_to_hw(struct cam_context *ctx,
 	}
 
 	return rc;
+
+put_ctx_ref:
+	for (; j >= 0; j--)
+		cam_context_putref(ctx);
 
 put_ref:
 	for (--i; i >= 0; i--) {
