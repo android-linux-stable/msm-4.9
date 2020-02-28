@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,6 +21,10 @@
 #define BGCOM_MODEM_DOWN2_BG  7
 #define BGCOM_TWM_EXIT  8
 #define BGCOM_BG_APP_RUNNING 9
+#define BGCOM_ADSP_DOWN2_BG  10
+#define BGCOM_BG_WEAR_LOAD 11
+#define BGCOM_BG_WEAR_TWM_LOAD 12
+#define BGCOM_BG_WEAR_UNLOAD 13
 #define EXCHANGE_CODE  'V'
 
 struct bg_ui_data {
@@ -33,9 +37,13 @@ struct bg_ui_data {
 
 enum bg_event_type {
 	BG_BEFORE_POWER_DOWN = 1,
+	BG_AFTER_POWER_DOWN,
+	BG_BEFORE_POWER_UP,
 	BG_AFTER_POWER_UP,
 	MODEM_BEFORE_POWER_DOWN,
 	MODEM_AFTER_POWER_UP,
+	ADSP_BEFORE_POWER_DOWN,
+	ADSP_AFTER_POWER_UP,
 };
 
 #define REG_READ \
@@ -67,5 +75,17 @@ enum bg_event_type {
 	struct bg_ui_data)
 #define BG_MODEM_DOWN2_BG_DONE \
 	_IOWR(EXCHANGE_CODE, BGCOM_MODEM_DOWN2_BG, \
+	struct bg_ui_data)
+#define BG_WEAR_LOAD \
+	_IOWR(EXCHANGE_CODE, BGCOM_BG_WEAR_LOAD, \
+	struct bg_ui_data)
+#define BG_WEAR_TWM_LOAD \
+	_IOWR(EXCHANGE_CODE, BGCOM_BG_WEAR_TWM_LOAD, \
+	struct bg_ui_data)
+#define BG_WEAR_UNLOAD \
+	_IOWR(EXCHANGE_CODE, BGCOM_BG_WEAR_UNLOAD, \
+	struct bg_ui_data)
+#define BG_ADSP_DOWN2_BG_DONE \
+	_IOWR(EXCHANGE_CODE, BGCOM_ADSP_DOWN2_BG, \
 	struct bg_ui_data)
 #endif
