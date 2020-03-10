@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -517,10 +517,10 @@ enum MHI_XFER_TYPE {
 #define MHI_DEV_WAKE_DB (127)
 #define MHI_MAX_MTU (0xffff)
 
-#define MHI_BW_SCALE_SETUP(er_index) ((MHI_BW_SCALE_CHAN_DB << \
-	BW_SCALE_CFG_CHAN_DB_ID_SHIFT) & BW_SCALE_CFG_CHAN_DB_ID_MASK | \
-	(1 << BW_SCALE_CFG_ENABLED_SHIFT) & BW_SCALE_CFG_ENABLED_MASK | \
-	((er_index) << BW_SCALE_CFG_ER_ID_SHIFT) & BW_SCALE_CFG_ER_ID_MASK)
+#define MHI_BW_SCALE_SETUP(er_index) (((MHI_BW_SCALE_CHAN_DB << \
+	BW_SCALE_CFG_CHAN_DB_ID_SHIFT) & BW_SCALE_CFG_CHAN_DB_ID_MASK) | \
+	((1 << BW_SCALE_CFG_ENABLED_SHIFT) & BW_SCALE_CFG_ENABLED_MASK) | \
+	(((er_index) << BW_SCALE_CFG_ER_ID_SHIFT) & BW_SCALE_CFG_ER_ID_MASK))
 
 #define MHI_BW_SCALE_RESULT(status, seq) ((status & 0xF) << 8 | (seq & 0xFF))
 #define MHI_BW_SCALE_NACK 0xF
@@ -879,22 +879,9 @@ irqreturn_t mhi_intvec_threaded_handlr(int irq_number, void *dev);
 irqreturn_t mhi_intvec_handlr(int irq_number, void *dev);
 void mhi_ev_task(unsigned long data);
 
-#ifdef CONFIG_MHI_DEBUG
-
-#define MHI_ASSERT(cond, msg) do { \
+#define MHI_ASSERT(cond, fmt, ...) do { \
 	if (cond) \
-		panic(msg); \
+		panic(fmt); \
 } while (0)
-
-#else
-
-#define MHI_ASSERT(cond, msg) do { \
-	if (cond) { \
-		MHI_ERR(msg); \
-		WARN_ON(cond); \
-	} \
-} while (0)
-
-#endif
 
 #endif /* _MHI_INT_H */

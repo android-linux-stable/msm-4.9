@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,6 +21,7 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/mhi.h>
+#include <linux/types.h>
 #include "mhi_internal.h"
 
 static void __mhi_unprepare_channel(struct mhi_controller *mhi_cntrl,
@@ -960,7 +961,8 @@ static int parse_xfer_event(struct mhi_controller *mhi_cntrl,
 				mhi_cntrl->unmap_single(mhi_cntrl, buf_info);
 
 			result.buf_addr = buf_info->cb_buf;
-			result.bytes_xferd = xfer_len;
+			result.bytes_xferd = min_t(u16, xfer_len,
+					buf_info->len);
 			mhi_del_ring_element(mhi_cntrl, buf_ring);
 			mhi_del_ring_element(mhi_cntrl, tre_ring);
 			local_rp = tre_ring->rp;
@@ -1109,6 +1111,10 @@ static void mhi_process_cmd_completion(struct mhi_controller *mhi_cntrl,
 		complete(&mhi_tsync->completion);
 	} else {
 		chan = MHI_TRE_GET_CMD_CHID(cmd_pkt);
+		if (chan >= mhi_cntrl->max_chan) {
+			MHI_ERR("invalid channel id %u\n", chan);
+			break;
+		}
 		mhi_chan = &mhi_cntrl->mhi_chan[chan];
 		write_lock_bh(&mhi_chan->lock);
 		mhi_chan->ccs = MHI_TRE_GET_EV_CODE(tre);
@@ -2022,8 +2028,8 @@ int mhi_debugfs_mhi_event_show(struct seq_file *m, void *d)
 			seq_printf(m,
 				   " rp:0x%llx wp:0x%llx local_rp:0x%llx db:0x%llx\n",
 				   er_ctxt->rp, er_ctxt->wp,
-				   mhi_to_physical(ring, ring->rp),
-				   mhi_event->db_cfg.db_val);
+				   (u64)mhi_to_physical(ring, ring->rp),
+				   (u64)mhi_event->db_cfg.db_val);
 		}
 	}
 
@@ -2056,9 +2062,9 @@ int mhi_debugfs_mhi_chan_show(struct seq_file *m, void *d)
 				   " base:0x%llx len:0x%llx wp:0x%llx local_rp:0x%llx local_wp:0x%llx db:0x%llx\n",
 				   chan_ctxt->rbase, chan_ctxt->rlen,
 				   chan_ctxt->wp,
-				   mhi_to_physical(ring, ring->rp),
-				   mhi_to_physical(ring, ring->wp),
-				   mhi_chan->db_cfg.db_val);
+				   (u64)mhi_to_physical(ring, ring->rp),
+				   (u64)mhi_to_physical(ring, ring->wp),
+				   (u64)mhi_chan->db_cfg.db_val);
 		}
 	}
 
