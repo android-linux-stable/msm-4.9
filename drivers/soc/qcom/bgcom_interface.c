@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -44,11 +44,13 @@
 #define BGDAEMON_LDO03_NPM_VTG 10000
 
 #define MPPS_DOWN_EVENT_TO_BG_TIMEOUT 3000
+#define ADSP_DOWN_EVENT_TO_BG_TIMEOUT 3000
 #define SLEEP_FOR_SPI_BUS 2000
 
 enum {
 	SSR_DOMAIN_BG,
 	SSR_DOMAIN_MODEM,
+	SSR_DOMAIN_ADSP,
 	SSR_DOMAIN_MAX,
 };
 
@@ -67,6 +69,10 @@ struct bgdaemon_regulator {
 struct bgdaemon_priv {
 	struct bgdaemon_regulator rgltr;
 	enum ldo_task ldo_action;
+	void *pil_h;
+	bool pending_bg_twm_wear_load;
+	struct workqueue_struct *bgdaemon_wq;
+	struct work_struct bgdaemon_load_twm_bg_work;
 };
 
 struct bg_event {
@@ -83,6 +89,7 @@ struct service_info {
 static char *ssr_domains[] = {
 	"bg-wear",
 	"modem",
+	"adsp",
 };
 
 static struct bgdaemon_priv *dev;
@@ -98,6 +105,7 @@ static	bool                     twm_exit;
 static	bool                     bg_app_running;
 static  struct   bgcom_open_config_type   config_type;
 static DECLARE_COMPLETION(bg_modem_down_wait);
+static DECLARE_COMPLETION(bg_adsp_down_wait);
 
 /**
  * send_uevent(): send events to user space
@@ -114,6 +122,20 @@ static int send_uevent(struct bg_event *pce)
 	snprintf(event_string, ARRAY_SIZE(event_string),
 			"BG_EVENT=%d", pce->e_type);
 	return kobject_uevent_env(&dev_ret->kobj, KOBJ_CHANGE, envp);
+}
+
+static void bgcom_load_twm_bg_work(struct work_struct *work)
+{
+	if (dev->pil_h) {
+		pr_err("bg-wear is already loaded\n");
+		subsystem_put(dev->pil_h);
+		dev->pil_h = NULL;
+	} else {
+		dev->pil_h = subsystem_get_with_fwname("bg-wear",
+							"bg-twm-wear");
+		if (!dev->pil_h)
+			pr_err("failed to load bg-twm-wear\n");
+	}
 }
 
 static int bgdaemon_configure_regulators(bool state)
@@ -142,6 +164,7 @@ static int bgdaemon_configure_regulators(bool state)
 	}
 	return retval;
 }
+
 static int bgdaemon_init_regulators(struct device *pdev)
 {
 	int rc;
@@ -334,6 +357,12 @@ static int modem_down2_bg(void)
 	return 0;
 }
 
+static int adsp_down2_bg(void)
+{
+	complete(&bg_adsp_down_wait);
+	return 0;
+}
+
 static long bg_com_ioctl(struct file *filp,
 		unsigned int ui_bgcom_cmd, unsigned long arg)
 {
@@ -378,6 +407,8 @@ static long bg_com_ioctl(struct file *filp,
 	case BG_MODEM_DOWN2_BG_DONE:
 		ret = modem_down2_bg();
 		break;
+	case BG_ADSP_DOWN2_BG_DONE:
+		ret = adsp_down2_bg();
 	case BG_TWM_EXIT:
 		twm_exit = true;
 		ret = 0;
@@ -386,8 +417,35 @@ static long bg_com_ioctl(struct file *filp,
 		bg_app_running = true;
 		ret = 0;
 		break;
+	case BG_WEAR_LOAD:
+		ret = 0;
+		if (dev->pil_h) {
+			pr_err("bg-wear is already loaded\n");
+			ret = -EFAULT;
+			break;
+		}
+
+		dev->pil_h = subsystem_get_with_fwname("bg-wear", "bg-wear");
+		if (!dev->pil_h) {
+			pr_err("failed to load bg-wear\n");
+			ret = -EFAULT;
+		}
+		break;
+	case BG_WEAR_TWM_LOAD:
+		dev->pending_bg_twm_wear_load = true;
+		queue_work(dev->bgdaemon_wq, &dev->bgdaemon_load_twm_bg_work);
+		ret = 0;
+		break;
+	case BG_WEAR_UNLOAD:
+		if (dev->pil_h) {
+			subsystem_put(dev->pil_h);
+			dev->pil_h = NULL;
+		}
+		ret = 0;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
+		break;
 	}
 	return ret;
 }
@@ -509,7 +567,19 @@ static int __init init_bg_com_dev(void)
 	if (platform_driver_register(&bg_daemon_driver))
 		pr_err("%s: failed to register bg-daemon register\n", __func__);
 
+	dev->bgdaemon_wq =
+		create_singlethread_workqueue("bgdaemon-work-queue");
+	if (!dev->bgdaemon_wq) {
+		pr_err("Failed to init BG-DAEMON work-queue\n");
+		goto free_wq;
+	}
+	INIT_WORK(&dev->bgdaemon_load_twm_bg_work, bgcom_load_twm_bg_work);
+
 	return 0;
+
+free_wq:
+	destroy_workqueue(dev->bgdaemon_wq);
+	return -EFAULT;
 }
 
 static void __exit exit_bg_com_dev(void)
@@ -544,6 +614,12 @@ static int ssr_bg_cb(struct notifier_block *this,
 	case SUBSYS_AFTER_SHUTDOWN:
 		/* Add sleep for  SPI Bus to release*/
 		msleep(SLEEP_FOR_SPI_BUS);
+		if (dev->pending_bg_twm_wear_load) {
+			/* Load bg-twm-wear */
+			dev->pending_bg_twm_wear_load = false;
+			queue_work(dev->bgdaemon_wq,
+				&dev->bgdaemon_load_twm_bg_work);
+		}
 		break;
 	case SUBSYS_AFTER_POWERUP:
 		bge.e_type = BG_AFTER_POWER_UP;
@@ -585,6 +661,29 @@ static int ssr_modem_cb(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
+static int ssr_adsp_cb(struct notifier_block *this,
+		unsigned long opcode, void *data)
+{
+	struct bg_event adspe;
+	int ret;
+
+	switch (opcode) {
+	case SUBSYS_BEFORE_SHUTDOWN:
+		adspe.e_type = ADSP_BEFORE_POWER_DOWN;
+		reinit_completion(&bg_adsp_down_wait);
+		send_uevent(&adspe);
+		ret = wait_for_completion_timeout(&bg_adsp_down_wait,
+			msecs_to_jiffies(ADSP_DOWN_EVENT_TO_BG_TIMEOUT));
+		if (!ret)
+			pr_err("Time out on adsp down event\n");
+		break;
+	case SUBSYS_AFTER_POWERUP:
+		adspe.e_type = ADSP_AFTER_POWER_UP;
+		send_uevent(&adspe);
+		break;
+	}
+	return NOTIFY_DONE;
+}
 bool is_twm_exit(void)
 {
 	if (twm_exit) {
@@ -610,12 +709,17 @@ static struct notifier_block ssr_modem_nb = {
 	.priority = 0,
 };
 
+static struct notifier_block ssr_adsp_nb = {
+	.notifier_call = ssr_adsp_cb,
+	.priority = 0,
+};
+
 static struct notifier_block ssr_bg_nb = {
 	.notifier_call = ssr_bg_cb,
 	.priority = 0,
 };
 
-static struct service_info service_data[2] = {
+static struct service_info service_data[3] = {
 	{
 		.name = "SSR_BG",
 		.domain_id = SSR_DOMAIN_BG,
@@ -626,6 +730,12 @@ static struct service_info service_data[2] = {
 		.name = "SSR_MODEM",
 		.domain_id = SSR_DOMAIN_MODEM,
 		.nb = &ssr_modem_nb,
+		.handle = NULL,
+	},
+	{
+		.name = "SSR_ADSP",
+		.domain_id = SSR_DOMAIN_ADSP,
+		.nb = &ssr_adsp_nb,
 		.handle = NULL,
 	},
 };
