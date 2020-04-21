@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018,2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -415,7 +415,7 @@ static void enable_spi_panel_te_irq(struct spi_panel_data *ctrl_pdata,
 }
 
 int mdss_spi_panel_kickoff(struct mdss_panel_data *pdata,
-			char *buf, int len, int dma_stride)
+			char __iomem *buf, int len, int dma_stride)
 {
 	struct spi_panel_data *ctrl_pdata = NULL;
 	char *tx_buf;
@@ -1122,10 +1122,10 @@ static void mdss_spi_panel_bklt_pwm(struct spi_panel_data *ctrl, int level)
 
 	if (level == 0) {
 		if (ctrl->pwm_enabled) {
-			ret = pwm_config_us(ctrl->pwm_bl, level,
-					ctrl->pwm_period);
+			ret = pwm_config(ctrl->pwm_bl, 0,
+				ctrl->pwm_period * NSEC_PER_USEC);
 			if (ret)
-				pr_err("%s: pwm_config_us() failed err=%d.\n",
+				pr_err("%s: pwm_config() failed err=%d.\n",
 						__func__, ret);
 			pwm_disable(ctrl->pwm_bl);
 		}
