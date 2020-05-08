@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -385,6 +385,10 @@
 #define IPA_TZ_UNLOCK_ATTRIBUTE 0x0C0311
 #define TZ_MEM_PROTECT_REGION_ID 0x10
 
+#define IPA_IS_4_0_AUTO_CONFIG() \
+	((ipa3_ctx->ipa_hw_type == IPA_HW_v4_0) && \
+	(ipa3_ctx->ipa_config_is_auto))
+
 struct ipa3_active_client_htable_entry {
 	struct hlist_node list;
 	char id_string[IPA3_ACTIVE_CLIENTS_LOG_NAME_LEN];
@@ -728,6 +732,7 @@ struct ipa3_status_stats {
  * @gsi_evt_ring_hdl: EP's GSI channel event ring handle
  * @gsi_mem_info: EP's GSI channel rings info
  * @chan_scratch: EP's GSI channel scratch info
+ * @xfer_notify: transfer element
  * @cfg: EP cionfiguration
  * @dst_pipe_index: destination pipe index
  * @rt_tbl_idx: routing table index
@@ -752,6 +757,7 @@ struct ipa3_ep_context {
 	unsigned long gsi_evt_ring_hdl;
 	struct ipa_gsi_ep_mem_info gsi_mem_info;
 	union __packed gsi_channel_scratch chan_scratch;
+	struct gsi_chan_xfer_notify xfer_notify;
 	bool bytes_xfered_valid;
 	u16 bytes_xfered;
 	dma_addr_t phys_base;
@@ -775,8 +781,6 @@ struct ipa3_ep_context {
 	bool napi_enabled;
 	u32 eot_in_poll_err;
 	bool ep_delay_set;
-
-	int (*client_lock_unlock)(bool is_lock);
 
 	/* sys MUST be the last element of this struct */
 	struct ipa3_sys_context *sys;
@@ -1371,6 +1375,12 @@ enum ipa_smmu_cb_type {
 	IPA_SMMU_CB_MAX
 };
 
+enum ipa_client_cb_type {
+	IPA_USB_CLNT,
+	IPA_MHI_CLNT,
+	IPA_MAX_CLNT
+};
+
 /**
  * struct ipa3_char_device_context - IPA character device
  * @class: pointer to the struct class
@@ -1614,6 +1624,8 @@ struct ipa3_context {
 	bool vlan_mode_iface[IPA_VLAN_IF_MAX];
 	bool wdi_over_pcie;
 	bool fw_loaded;
+	int (*client_lock_unlock[IPA_MAX_CLNT])(bool is_lock);
+	bool (*get_teth_port_state[IPA_MAX_CLNT])(void);
 };
 
 struct ipa3_plat_drv_res {
@@ -1931,8 +1943,10 @@ int ipa3_xdci_connect(u32 clnt_hdl);
 int ipa3_xdci_disconnect(u32 clnt_hdl, bool should_force_clear, u32 qmi_req_id);
 
 void ipa3_xdci_ep_delay_rm(u32 clnt_hdl);
-void ipa3_register_lock_unlock_callback(int (*client_cb)(bool), u32 ipa_ep_idx);
-void ipa3_deregister_lock_unlock_callback(u32 ipa_ep_idx);
+void ipa3_register_client_callback(int (*client_cb)(bool),
+		bool (*teth_port_state)(void),
+		enum ipa_client_type client_type);
+void ipa3_deregister_client_callback(enum ipa_client_type client_type);
 int ipa3_set_reset_client_prod_pipe_delay(bool set_reset,
 		enum ipa_client_type client);
 int ipa3_set_reset_client_cons_pipe_sus_holb(bool set_reset,
@@ -2284,6 +2298,7 @@ void ipa3_proxy_clk_unvote(void);
 bool ipa3_is_client_handle_valid(u32 clnt_hdl);
 
 enum ipa_client_type ipa3_get_client_mapping(int pipe_idx);
+enum ipa_client_type ipa3_get_client_by_pipe(int pipe_idx);
 
 void ipa_init_ep_flt_bitmap(void);
 
@@ -2431,6 +2446,7 @@ int ipa3_tag_process(struct ipa3_desc *desc, int num_descs,
 
 void ipa3_q6_pre_shutdown_cleanup(void);
 void ipa3_q6_post_shutdown_cleanup(void);
+void ipa3_q6_pre_powerup_cleanup(void);
 int ipa3_init_q6_smem(void);
 
 int ipa3_mhi_handle_ipa_config_req(struct ipa_config_req_msg_v01 *config_req);
